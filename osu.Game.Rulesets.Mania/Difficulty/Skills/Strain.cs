@@ -66,7 +66,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             }
             // --- OKAY LETS START BY SOLVING THE CHORD / JUMPTRILL ISSUE --- //
             //find the last note used
-            double lastNote = startTimes.Max();
+            double[] lastNoteList = startTimes.Where(c => c != startTime).ToArray();
+            double lastNote = lastNoteList.Max();
 
             //see what columns use that note (chord checker)
             int[] columnTracker = new int[startTimes.Length];
@@ -101,35 +102,20 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 if (length > bestLength) { bestLength = length; }
             }
 
-            //figure out if all the notes happen on one hand or two hands
-            bool handBias = false;
-            if (!(columnTracker[0] <= ((Convert.ToDouble(startTimes.Length) + 1) / 2) && columnTracker[columnTracker.Length - 1] >= ((Convert.ToDouble(startTimes.Length) + 1) / 2))) { handBias = true; }
-            if (columnTracker.Length == 1) { handBias = false; }
-
             //lets calculate chord difficulty:
             //chord count:
             double chordSize = columnTracker.Length;
             //chord calculation:
-            double chordDifficulty = Math.Pow(0.9, (Math.Cos((2.2 * chordSize) / (Convert.ToDouble(startTimes.Length) / 2)) + ((Convert.ToDouble(startTimes.Length) / 2) / (1 + Math.Exp(10 * (Convert.ToDouble(startTimes.Length) - (chordSize - 0.1)))))));
+            double chordDifficulty = Math.Pow(0.8, (Math.Cos((2.2 * chordSize) / (Convert.ToDouble(startTimes.Length) / 2.0d)) + ((Convert.ToDouble(startTimes.Length) / 2.0d) / (1 + Math.Exp(10 * (Convert.ToDouble(startTimes.Length) - (chordSize - 0.1)))))));
 
             //introduce a multiplication nerf based on how many notes are close together and if they're all on one hand
             //bestLength will always return 1 so we add +1 to the amount of cols to start
-            double biasReductionValue = ((Convert.ToDouble(startTimes.Length) + (1 / 12) - (bestLength / 12)) / Convert.ToDouble(startTimes.Length));
+            double biasReductionValue = ((Convert.ToDouble(startTimes.Length) + (1.0d / 2.0d) - (bestLength / 2.0d)) / Convert.ToDouble(startTimes.Length));
             //add in the complexity of the chord:
             biasReductionValue *= chordDifficulty - (1 - chordDifficulty);
-            //hand value
-            if (handBias == true) { if (Convert.ToDouble(columnTracker.Length) <= ((Convert.ToDouble(startTimes.Length) + 1) / 2) || Convert.ToDouble(columnTracker.Length) >= (Convert.ToDouble(startTimes.Length) / 2)) { biasReductionValue *= 0.85; } else { biasReductionValue *= 0.95; } }
-
-            //lets add a little bonus if the pattern is [5]->[4][6] for example
-            double[] startTimeOrder = startTimes.OrderByDescending(c => c).Distinct().ToArray();
-            if (startTimeOrder.Length > 1)
-            {
-                int noteLocation = Array.IndexOf(startTimes, startTimeOrder[1]);
-                if (noteLocation != 0 && noteLocation != startTimes.Length - 1)
-                {
-                    if (startTimes[noteLocation + 1] == lastNote && startTimes[noteLocation - 1] == lastNote) { biasReductionValue *= 1 + (1 / (1 + Math.Exp(0.025 * (startTimeOrder[0] - startTimeOrder[1])))); }
-                }
-            }
+            //if the next note is nearby we dont want to reduce difficulty too much
+            double timeBetweenNotes = startTime - lastNote;
+            biasReductionValue *= (.5 + (1 / (2 + Math.Exp(0.2 * (timeBetweenNotes - 60)))));
 
             // --- OKAY NOW THAT'S SORTED, LETS DEAL WITH ROLLS (THE BIGGER HEADACHE) --- //
             //gonna say that a roll has to be over at least 4 columns (2 on each hand), a 3 note roll in this context is literally just gonna be any stream
@@ -162,101 +148,35 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 j++;
             }
 
-            //split the array in half to work out hand-based calculations
-            double arrayLength = noteLocations.Length;
-            double[] leftHandArray = noteLocations.Take(Convert.ToInt32(Math.Floor(arrayLength / 2))).ToArray();
-            double[] rightHandArray = noteLocations.Skip(Convert.ToInt32(Math.Ceiling(arrayLength / 2))).ToArray(); //[1][3][3][6] to [1][2][2][3]
-
-            int noteTracker = 1;
-            for (int k = 1; k <= startTimes.Length; k++)
-            {
-                bool isChord = false;
-                for (int m = 0; m < leftHandArray.Length; m++)
-                {
-                    if (leftHandArray[m] == k)
-                    {
-                        leftHandArray[m] = noteTracker;
-                        if (isChord == true) { leftHandArray[m]--; }
-                        if (isChord == false) { isChord = true; noteTracker++; }
-                    }
-                }
-            }
-
-            noteTracker = 1;
-            for (int k = 1; k <= startTimes.Length; k++)
-            {
-                bool isChord = false;
-                for (int m = 0; m < rightHandArray.Length; m++)
-                {
-                    if (rightHandArray[m] == k)
-                    {
-                        rightHandArray[m] = noteTracker;
-                        if (isChord == true) { rightHandArray[m]--; }
-                        if (isChord == false) { isChord = true; noteTracker++; }
-                    }
-                }
-            }
-
-            //count the absolute distance between notes
-            double leftHandValue = 0;
-            double rightHandValue = 0;
+            //count the absolute distance between notes as well as its linerality
             double bothHandValue = 0;
             int lastNotePosition = 0;
             int currentNote = 0;
-            double leftHandCount = 0;
-            double rightHandCount = 0;
             double bothHandCount = 0;
             double noteDistancePercentage = 1;
+            double linearality = 0;
 
-            foreach (double note in leftHandArray)
-            {
-                if (note != 0)
-                {
-                    if (lastNotePosition == 0) { lastNotePosition = currentNote; }
-                    else { leftHandValue += Math.Abs((note - leftHandArray[lastNotePosition])); }
-                    leftHandCount++;
-                }
-                currentNote++;
-            }
-            currentNote = 0;
-            lastNotePosition = 0; //reset values for 2nd check
-            foreach (double note in rightHandArray)
-            {
-                if (note != 0)
-                {
-                    if (lastNotePosition == 0) { lastNotePosition = currentNote; }
-                    else { rightHandValue += Math.Abs((note - rightHandArray[lastNotePosition])); }
-                    rightHandCount++;
-                }
-                currentNote++;
-            }
-            currentNote = 0;
-            lastNotePosition = 0; //reset values for 3rd check
             foreach (double note in noteLocations)
             {
                 if (note != 0)
                 {
-                    if (lastNotePosition == 0) { lastNotePosition = currentNote; }
-                    else { bothHandValue += Math.Abs((note - noteLocations[lastNotePosition])); }
+                    if (lastNotePosition != 0) { bothHandValue += Math.Abs((note - noteLocations[lastNotePosition])); }
+                    if (note > lastNotePosition) linearality++;
+                    if (note < lastNotePosition) linearality--;
                     bothHandCount++;
+                    lastNotePosition = currentNote;
                 }
                 currentNote++;
             }
 
+            linearality = (Convert.ToDouble(startTimes.Length) - Math.Abs(linearality)) / Convert.ToDouble(startTimes.Length);
+
             //calculate how far from the max value the notes are away from each other
             //the further apart they are, the more manip they are
-            double leftHandPercentage =  leftHandValue /  Math.Max(((leftHandCount  * (leftHandCount - 1))  / 2) + ((startTimes.Length) - 1), 1);
-            double rightHandPercentage = rightHandValue / Math.Max(((rightHandCount * (rightHandCount - 1)) / 2) + ((startTimes.Length) - 1), 1);
-            double bothHandPercentage = bothHandValue / Math.Max(((bothHandCount * (bothHandCount - 1)) / 2) + ((startTimes.Length) - 1), 1);
-            if (leftHandPercentage == 0) leftHandPercentage = 1; //these deal with the note being a jack
-            if (rightHandPercentage == 0) rightHandPercentage = 1;
-            if (leftHandPercentage == 1 && rightHandPercentage == 1) { noteDistancePercentage = 1; }
-            else if (leftHandPercentage == 1) { noteDistancePercentage = rightHandPercentage; }
-            else if (rightHandPercentage == 1) { noteDistancePercentage = leftHandPercentage; }
-            else { noteDistancePercentage = (leftHandPercentage + rightHandPercentage) / 2; }
+            double bothHandPercentage = bothHandValue / Math.Max(((bothHandCount * (bothHandCount - 1)) / 2.0d) + ((startTimes.Length) - 1), 1);
 
-            if (bothHandPercentage == 0) { noteDistancePercentage  = 1; }
-            else { noteDistancePercentage = (0.5 + ((noteDistancePercentage + bothHandPercentage) / 4)); }
+            if (bothHandPercentage == 0) { noteDistancePercentage = 1; }
+            else { noteDistancePercentage = (0.5 + ((noteDistancePercentage + bothHandPercentage) / 4.0d)); }
 
             //third of all, how close are the notes? does it seem fast enough to manip or are they just far apart
             //we should go with a pretty fast falloff in terms of nerfing difficulty, if we use 180BPM (as does the RC) in terms of a 4 note roll, that means the gap is ~42ms between each note.
@@ -276,9 +196,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (inBetweenNotes.Length != 0) { averageNoteDistance = totalNoteDistance / totalNotes; }
 
             if (averageNoteDistance == 0) { averageNoteDistance = startTime - startTimes[column]; }
-
-            double overallRollNerf = 0.8 + (((Convert.ToDouble(startTimes.Length - inBetweenNotes.Length) / Convert.ToDouble(startTimes.Length)) * noteDistancePercentage * (1 / (1 + Math.Exp(0.3 * (29 - averageNoteDistance))))) / 5);
-            overallRollNerf *= 0.75;
+            //double overallRollNerf = 0.5 + (((Convert.ToDouble(startTimes.Length - inBetweenNotes.Length) / Convert.ToDouble(startTimes.Length)) * noteDistancePercentage * linearality * (1 / (1 + Math.Exp(0.3 * (29 - averageNoteDistance))))) / 2);
+            double overallRollNerf = 0.5 + (noteDistancePercentage * linearality);
             // The hold addition is given if there was an overlap, however it is only valid if there are no other note with a similar ending.
             // Releasing multiple notes is just as easy as releasing 1. Nerfs the hold addition by half if the closest release is release_threshold away.
             // holdAddition
@@ -317,8 +236,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private double applyDecay(double value, double deltaTime, double decayBase, bool strainReduction, double ChordCalulation = 1)
         {
-            if (strainReduction == true) { return value * (Math.Pow(decayBase, deltaTime / 1000) - Math.Pow(0.95, (15 * deltaTime) + ((ChordCalulation / 2) * 300))); }
-            else { return value * Math.Pow(decayBase, deltaTime / 1000); }
+            if (strainReduction == true) { return value * (Math.Pow(decayBase, deltaTime / 1000.0d) - Math.Pow(0.95, (15 * deltaTime) + ((ChordCalulation / 2.0d) * 300))); }
+            else { return value * Math.Pow(decayBase, deltaTime / 1000.0d); }
         }
     }
 }
