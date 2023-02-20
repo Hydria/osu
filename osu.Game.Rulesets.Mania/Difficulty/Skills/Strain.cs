@@ -116,88 +116,58 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             //if the next note is nearby we dont want to reduce difficulty too much
             double timeBetweenNotes = startTime - lastNote;
             biasReductionValue *= (.5 + (1 / (2 + Math.Exp(0.2 * (timeBetweenNotes - 60)))));
-
+            biasReductionValue = (1.0d / 3.0d) + (biasReductionValue / 1.5);
             // --- OKAY NOW THAT'S SORTED, LETS DEAL WITH ROLLS (THE BIGGER HEADACHE) --- //
             //gonna say that a roll has to be over at least 4 columns (2 on each hand), a 3 note roll in this context is literally just gonna be any stream
 
             //first of all, how many notes has there been since the last note in this column
             double lastNoteTiming = startTimes[column];
-            double[] inBetweenNotes = startTimes.Where(c => c > lastNoteTiming).ToArray();
+            double[] inBetweenNotes = startTimes.Where(c => c >= lastNoteTiming && c < startTime).ToArray();
             //the length of the above array will be the beginning of the calculations
 
-            //second of all, what has been the distance (aka absolute value) between these notes on a per hand basis (aka 1-3-2 on the left hand is +3 while 1-2-3 on the left hand is +2)
-            //the maximum gap between notes is (((Math.Floor(startTimes.Length) / 2) - 1) * (Math.Floor(startTimes.Length) / 2)) / 2
-
-            //sort the array so we know what order the numbers come in
-            Array.Sort(inBetweenNotes);
-            //make an array which stores the value location of each of the notes in the array
-            double[] noteLocations = new double[startTimes.Length];
-            int j = 0;
-
-            //annoyingly, before we start, i need to convert the doubles into ints for IndexOf to work
-            int[] inBetweenInts = new int[inBetweenNotes.Length];
-            int[] startInt = new int[startTimes.Length];
-
-            for (int k = 0; k < inBetweenNotes.Length; k++) { inBetweenInts[k] = Convert.ToInt32(Math.Floor(inBetweenNotes[k])); }
-            for (int k = 0; k < startTimes.Length; k++) { startInt[k] = Convert.ToInt32(Math.Floor(startTimes[k])); }
-
-            foreach (int note in startInt)
+            //next of all lets calculate what it takes to chordtrill
+            //43ms is T&R, 59ms is Cry... 50ms cutoff? that's like 300bpm chordtrill or 600bpm streams [covers 4 notes]
+            //if anyone's hitting 600bpm tech streams legit we'll revisit this
+            double chordTrillNerf = 1;
+            double HalfColumnCount = (Math.Floor(startTimes.Length / 2.0d));
+            bool leftHandChordTrill = false;
+            bool rightHandChordTrill = false;
+            bool leftHandChord = false;
+            bool rightHandChord = false; //need to make sure im not just checking chords (which will return true on "is this a trillable chord")
+            double startingValue = 0;
+            //okay lets see if there are enough previous notes to even warrant checking
+            if (inBetweenNotes.Length >= HalfColumnCount * 2.0d) //the /2, flooring and *2 makes odd number keys require one key less (for spacebar reasons)
             {
-                if (note <= lastNoteTiming) { noteLocations[j] = 0; }
-                else { noteLocations[j] = Array.IndexOf(inBetweenInts, note) + 1; }
-                j++;
-            }
-
-            //count the absolute distance between notes as well as its linerality
-            double bothHandValue = 0;
-            int lastNotePosition = 0;
-            int currentNote = 0;
-            double bothHandCount = 0;
-            double noteDistancePercentage = 1;
-            double linearality = 0;
-
-            foreach (double note in noteLocations)
-            {
-                if (note != 0)
+                //okay lets check each hand to see if all the notes in that hand are close enough to warrant classing as a chord
+                leftHandChordTrill = true;
+                leftHandChord = true;
+                rightHandChordTrill = true;
+                rightHandChord = true;
+                for (int i = 0; i < Math.Ceiling(startTimes.Length / 2.0d); i++)
                 {
-                    if (lastNotePosition != 0) { bothHandValue += Math.Abs((note - noteLocations[lastNotePosition])); }
-                    if (note > lastNotePosition) linearality++;
-                    if (note < lastNotePosition) linearality--;
-                    bothHandCount++;
-                    lastNotePosition = currentNote;
+                    if (startingValue == 0) { startingValue = startTimes[i]; }
+                    else if (startTimes[i] > startingValue + 50 || startTimes[i] < startingValue - 50) { leftHandChordTrill = false; }
+                    else if (startTimes[i] != startingValue) { leftHandChord = false; }
                 }
-                currentNote++;
-            }
-
-            linearality = (Convert.ToDouble(startTimes.Length) - Math.Abs(linearality)) / Convert.ToDouble(startTimes.Length);
-
-            //calculate how far from the max value the notes are away from each other
-            //the further apart they are, the more manip they are
-            double bothHandPercentage = bothHandValue / Math.Max(((bothHandCount * (bothHandCount - 1)) / 2.0d) + ((startTimes.Length) - 1), 1);
-
-            if (bothHandPercentage == 0) { noteDistancePercentage = 1; }
-            else { noteDistancePercentage = (0.5 + ((noteDistancePercentage + bothHandPercentage) / 4.0d)); }
-
-            //third of all, how close are the notes? does it seem fast enough to manip or are they just far apart
-            //we should go with a pretty fast falloff in terms of nerfing difficulty, if we use 180BPM (as does the RC) in terms of a 4 note roll, that means the gap is ~42ms between each note.
-            //starting the nerf curve at 16ms as well as a standard "this is just a chord" value
-            double totalNoteDistance = 0;
-            double totalNotes = 0;
-            double averageNoteDistance = 0;
-            foreach (double note in inBetweenNotes)
-            {
-                if (inBetweenNotes.Length == 0) { }
-                else
+                startingValue = 0; //lets reset values again
+                for (int i = Convert.ToInt32(HalfColumnCount); i < startTimes.Length; i++)
                 {
-                    totalNoteDistance += startTime - note;
-                    totalNotes++;
+                    if (startingValue == 0) { startingValue = startTimes[i]; }
+                    else if (startTimes[i] > startingValue + 50 || startTimes[i] < startingValue - 50) { rightHandChordTrill = false; }
+                    else if (startTimes[i] != startingValue) { rightHandChord = false; }
                 }
             }
-            if (inBetweenNotes.Length != 0) { averageNoteDistance = totalNoteDistance / totalNotes; }
+            //chord check to stop chord nerf (that's fixed above)
+            //if either value is true, we reduce the overall strain by an amount respective to the amount of keys being pressed (i.e. for 4K that's 50% each hand, for 7K that's down to 33% for each hand)
+            if (leftHandChordTrill && !leftHandChord) { chordTrillNerf *= (1 / HalfColumnCount); }
+            if (rightHandChordTrill && !rightHandChord) { chordTrillNerf *= (1 / HalfColumnCount); }
+            //nerfing the overall value by up to 98.8% isn't going to show very high sr so lets bring that up a bit, using 7K as a rough estimate (aka 11%)
+            //rough values we have are:
+            //4K -> 0.25 / 0.50 / 1 -> 0.625 / 0.75 / 1
+            //6K -> 0.11 / 0.33 / 1 -> 0.555 / 0.66 / 1
+            //8K -> 0.06 / 0.25 / 1 -> 0.530 / 0.63 / 1
+            chordTrillNerf = (1.0d / 3.0d) + (chordTrillNerf / 1.5);
 
-            if (averageNoteDistance == 0) { averageNoteDistance = startTime - startTimes[column]; }
-            //double overallRollNerf = 0.5 + (((Convert.ToDouble(startTimes.Length - inBetweenNotes.Length) / Convert.ToDouble(startTimes.Length)) * noteDistancePercentage * linearality * (1 / (1 + Math.Exp(0.3 * (29 - averageNoteDistance))))) / 2);
-            double overallRollNerf = 0.5 + (noteDistancePercentage * linearality);
             // The hold addition is given if there was an overlap, however it is only valid if there are no other note with a similar ending.
             // Releasing multiple notes is just as easy as releasing 1. Nerfs the hold addition by half if the closest release is release_threshold away.
             // holdAddition
@@ -219,7 +189,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             individualStrain = maniaCurrent.DeltaTime <= 1 ? Math.Max(individualStrain, individualStrains[column]) : individualStrains[column];
 
             // Decay and increase overallStrain
-            overallStrain = applyDecay(overallStrain, current.DeltaTime, overall_decay_base, true, biasReductionValue * overallRollNerf);
+            overallStrain = applyDecay(overallStrain, current.DeltaTime, overall_decay_base, true, (biasReductionValue * chordTrillNerf));
             overallStrain += (1 + holdAddition) * holdFactor;
 
             // Update startTimes and endTimes arrays
@@ -236,7 +206,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private double applyDecay(double value, double deltaTime, double decayBase, bool strainReduction, double ChordCalulation = 1)
         {
-            if (strainReduction == true) { return value * (Math.Pow(decayBase, deltaTime / 1000.0d) - Math.Pow(0.95, (15 * deltaTime) + ((ChordCalulation / 2.0d) * 300))); }
+            if (strainReduction == true) { return value * (Math.Pow(decayBase, deltaTime / 1000.0d) - Math.Pow(0.95, 175 * ChordCalulation)); }
             else { return value * Math.Pow(decayBase, deltaTime / 1000.0d); }
         }
     }
