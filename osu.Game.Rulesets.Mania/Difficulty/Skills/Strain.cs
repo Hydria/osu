@@ -6,12 +6,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using OpenTabletDriver.Native.Windows.Input;
 using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mania.Difficulty.Preprocessing;
-using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Skills
@@ -158,6 +156,9 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double holdFactor = 1.0; // Factor to all additional strains in case something else is held
             double holdAddition = 0; // Addition to the current note in case it's a hold and has to be released awkwardly
 
+            //this checks to see if the releases we perform close together are on the same hand, and if so, treat them _more_ like a chord
+            bool handBias = false;
+            double handBiasValue = 1;
             for (int i = 0; i < endTimes.Length; ++i)
             {
                 // The current note is overlapped if a previous note or end is overlapping the current note body
@@ -169,19 +170,28 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
                 closestEndTime = Math.Min(closestEndTime, Math.Abs(endTime - endTimes[i]));
             }
+            for (int i = 0; i < endTimes.Length; ++i)
+            {
+                if ((endTimes[i] == endTime + closestEndTime || endTimes[i] == endTime - closestEndTime) && closestEndTime != 0 && i != column)
+                {
+                    if (column >= Math.Ceiling(startTimes.Length / 2.0d) && i >= Math.Ceiling(startTimes.Length / 2.0d)) { handBias = true; }
+                    if (column <= Math.Ceiling(startTimes.Length / 2.0d) && i <= Math.Ceiling(startTimes.Length / 2.0d)) { handBias = true; }
+                }
+            }
+            if (handBias) { handBiasValue *= 0.4; }
 
             // The hold addition is given if there was an overlap, however it is only valid if there are no other note with a similar ending.
             // Releasing multiple notes is just as easy as releasing 1. Nerfs the hold addition by half if the closest release is release_threshold away.
             // holdAddition
-            //     ^
-            // 1.0 + - - - - - -+-----------
-            //     |           /
-            // 0.5 + - - - - -/   Sigmoid Curve
-            //     |         /|
-            // 0.0 +--------+-+---------------> Release Difference / ms
-            //         release_threshold
+            //      ^
+            // 1.0  + - - - - - -+-----------
+            //      |           /
+            // 0.65 + - - - - -/   Sigmoid Curve
+            //      |         /|
+            // 0.3  +--------+-+---------------> Release Difference / ms
+            //          release_threshold
             if (isOverlapping)
-                holdAddition = 1 / (1 + Math.Exp(0.5 * (release_threshold - closestEndTime)));
+                holdAddition = (0.7 / (1 + Math.Exp(0.5 * (release_threshold - (closestEndTime * handBiasValue))))) + 0.3;
 
             // Decay and increase individualStrains in own column
             individualStrains[column] = applyDecay(individualStrains[column], startTime - startTimes[column], individual_decay_base, false);
