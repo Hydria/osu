@@ -100,6 +100,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double timeBetweenNotes = startTime - lastNote;
             bigChordNerf *= (.5 + (1 / (2 + Math.Exp(0.2 * (timeBetweenNotes - 60)))));
             bigChordNerf = (1.0d / 3.0d) + (bigChordNerf / 1.5);
+
             // --- OKAY NOW THAT'S SORTED, LETS DEAL WITH ROLLS (THE BIGGER HEADACHE) --- //
             //gonna say that a roll has to be over at least 4 columns (2 on each hand), a 3 note roll in this context is literally just gonna be any stream
 
@@ -129,14 +130,14 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 for (int i = 0; i < Math.Ceiling(startTimes.Length / 2.0d); i++)
                 {
                     if (startingValue == 0) { startingValue = startTimes[i]; }
-                    else if (startTimes[i] > startingValue + 50 || startTimes[i] < startingValue - 50) { leftHandChordTrill = false; }
+                    else if (startTimes[i] > startingValue + 29 || startTimes[i] < startingValue - 29) { leftHandChordTrill = false; }
                     else if (startTimes[i] != startingValue) { leftHandChord = false; }
                 }
                 startingValue = 0; //lets reset values again
                 for (int i = Convert.ToInt32(HalfColumnCount); i < startTimes.Length; i++)
                 {
                     if (startingValue == 0) { startingValue = startTimes[i]; }
-                    else if (startTimes[i] > startingValue + 50 || startTimes[i] < startingValue - 50) { rightHandChordTrill = false; }
+                    else if (startTimes[i] > startingValue + 29 || startTimes[i] < startingValue - 29) { rightHandChordTrill = false; }
                     else if (startTimes[i] != startingValue) { rightHandChord = false; }
                 }
             }
@@ -144,6 +145,8 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             //if either value is true, we reduce the overall strain by an amount respective to the amount of keys being pressed (i.e. for 4K that's 50% each hand, for 7K that's down to 33% for each hand)
             if (leftHandChordTrill && !leftHandChord) { chordTrillNerf *= (1 / HalfColumnCount); }
             if (rightHandChordTrill && !rightHandChord) { chordTrillNerf *= (1 / HalfColumnCount); }
+            //oh yeah actual chordtrill nerf as well how could i forget (making sure it's not a full chord at the same time
+            if (leftHandChord && leftHandChordTrill && rightHandChord && rightHandChordTrill && startTimes[0] != startTimes[startTimes.Length - 1]) { chordTrillNerf *= (0.5 / HalfColumnCount); }
             //nerfing the overall value by up to 98.8% isn't going to show very high sr so lets bring that up a bit, using 7K as a rough estimate (aka 11%)
             //rough values we have are:
             //4K -> 0.25 / 0.50 / 1 -> 0.533 / 0.733 / 1
@@ -180,6 +183,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             }
             if (handBias) { handBiasValue *= 0.4; }
 
+            //time to try another calculation aka how far through the LN are we hitting, the further from the middle of the note we're hitting the easier it is.
+            double lnProgressionPercentage = 0;
+            for (int i = 0; i < endTimes.Length; ++i)
+            {
+                if (Precision.DefinitelyBigger(endTimes[i], startTime, 1) && Precision.DefinitelyBigger(endTime, endTimes[i], 1))
+                {
+                    if (lnProgressionPercentage == 0) { lnProgressionPercentage = (endTimes[i] - startTime) / (endTime - startTime); }
+                    else { lnProgressionPercentage = (lnProgressionPercentage + (endTimes[i] - startTime) / (endTime - startTime)) / 2; }
+                }
+            }
+            if (lnProgressionPercentage <= 0.5) { lnProgressionPercentage *= 2; }
+            else { lnProgressionPercentage = 2 - (lnProgressionPercentage * 2); }
             // The hold addition is given if there was an overlap, however it is only valid if there are no other note with a similar ending.
             // Releasing multiple notes is just as easy as releasing 1. Nerfs the hold addition by half if the closest release is release_threshold away.
             // holdAddition
@@ -191,7 +206,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             // 0.3  +--------+-+---------------> Release Difference / ms
             //          release_threshold
             if (isOverlapping)
-                holdAddition = (0.7 / (1 + Math.Exp(0.5 * (release_threshold - (closestEndTime * handBiasValue))))) + 0.3;
+                holdAddition = (0.7 / (1 + Math.Exp(0.5 * (release_threshold - (closestEndTime * handBiasValue * lnProgressionPercentage))))) + 0.3;
 
             // Decay and increase individualStrains in own column
             individualStrains[column] = applyDecay(individualStrains[column], startTime - startTimes[column], individual_decay_base, false);
@@ -209,7 +224,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             endTimes[column] = endTime;
 
             // By subtracting CurrentStrain, this skill effectively only considers the maximum strain of any one hitobject within each strain section.
-            return individualStrain + overallStrain - CurrentStrain;
+            return (individualStrain + overallStrain - CurrentStrain) * 1.618;
         }
 
         protected override double CalculateInitialStrain(double offset, DifficultyHitObject current)
