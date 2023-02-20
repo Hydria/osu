@@ -95,13 +95,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             //introduce a multiplication nerf based on how many notes are close together and if they're all on one hand
             //bestLength will always return 1 so we add +1 to the amount of cols to start
-            double biasReductionValue = ((Convert.ToDouble(startTimes.Length) + (1.0d / 2.0d) - (bestLength / 2.0d)) / Convert.ToDouble(startTimes.Length));
+            double bigChordNerf = ((Convert.ToDouble(startTimes.Length) + (1.0d / 2.0d) - (bestLength / 2.0d)) / Convert.ToDouble(startTimes.Length));
             //add in the complexity of the chord:
-            biasReductionValue *= chordDifficulty - (1 - chordDifficulty);
+            bigChordNerf *= chordDifficulty - (1 - chordDifficulty);
             //if the next note is nearby we dont want to reduce difficulty too much
             double timeBetweenNotes = startTime - lastNote;
-            biasReductionValue *= (.5 + (1 / (2 + Math.Exp(0.2 * (timeBetweenNotes - 60)))));
-            biasReductionValue = (1.0d / 3.0d) + (biasReductionValue / 1.5);
+            bigChordNerf *= (.5 + (1 / (2 + Math.Exp(0.2 * (timeBetweenNotes - 60)))));
+            bigChordNerf = (1.0d / 3.0d) + (bigChordNerf / 1.5);
             // --- OKAY NOW THAT'S SORTED, LETS DEAL WITH ROLLS (THE BIGGER HEADACHE) --- //
             //gonna say that a roll has to be over at least 4 columns (2 on each hand), a 3 note roll in this context is literally just gonna be any stream
 
@@ -191,7 +191,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             individualStrain = maniaCurrent.DeltaTime <= 1 ? Math.Max(individualStrain, individualStrains[column]) : individualStrains[column];
 
             // Decay and increase overallStrain
-            overallStrain = applyDecay(overallStrain, current.DeltaTime, overall_decay_base, true, (biasReductionValue * chordTrillNerf));
+            overallStrain = applyDecay(overallStrain, current.DeltaTime, overall_decay_base, true, (bigChordNerf * chordTrillNerf));
             overallStrain += (1 + holdAddition) * holdFactor;
 
             // Update startTimes and endTimes arrays
