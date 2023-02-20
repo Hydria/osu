@@ -49,21 +49,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             int column = maniaCurrent.BaseObject.Column;
             bool isOverlapping = false;
 
-            double closestEndTime = Math.Abs(endTime - startTime); // Lowest value we can assume with the current information
-            double holdFactor = 1.0; // Factor to all additional strains in case something else is held
-            double holdAddition = 0; // Addition to the current note in case it's a hold and has to be released awkwardly
-
-            for (int i = 0; i < endTimes.Length; ++i)
-            {
-                // The current note is overlapped if a previous note or end is overlapping the current note body
-                isOverlapping |= Precision.DefinitelyBigger(endTimes[i], startTime, 1) && Precision.DefinitelyBigger(endTime, endTimes[i], 1);
-
-                // We give a slight bonus to everything if something is held meanwhile
-                if (Precision.DefinitelyBigger(endTimes[i], endTime, 1))
-                    holdFactor = 1.25;
-
-                closestEndTime = Math.Min(closestEndTime, Math.Abs(endTime - endTimes[i]));
-            }
             // --- OKAY LETS START BY SOLVING THE CHORD / JUMPTRILL ISSUE --- //
             //find the last note used
             double[] lastNoteList = startTimes.Where(c => c != startTime).ToArray();
@@ -163,10 +148,27 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (rightHandChordTrill && !rightHandChord) { chordTrillNerf *= (1 / HalfColumnCount); }
             //nerfing the overall value by up to 98.8% isn't going to show very high sr so lets bring that up a bit, using 7K as a rough estimate (aka 11%)
             //rough values we have are:
-            //4K -> 0.25 / 0.50 / 1 -> 0.625 / 0.75 / 1
-            //6K -> 0.11 / 0.33 / 1 -> 0.555 / 0.66 / 1
-            //8K -> 0.06 / 0.25 / 1 -> 0.530 / 0.63 / 1
+            //4K -> 0.25 / 0.50 / 1 -> 0.533 / 0.733 / 1
+            //6K -> 0.11 / 0.33 / 1 -> 0.421 / 0.597 / 1
+            //8K -> 0.06 / 0.25 / 1 -> 0.381 / 0.533 / 1
             chordTrillNerf = (1.0d / 3.0d) + (chordTrillNerf / 1.5);
+
+            //start of the LN calculations
+            double closestEndTime = Math.Abs(endTime - startTime); // Lowest value we can assume with the current information
+            double holdFactor = 1.0; // Factor to all additional strains in case something else is held
+            double holdAddition = 0; // Addition to the current note in case it's a hold and has to be released awkwardly
+
+            for (int i = 0; i < endTimes.Length; ++i)
+            {
+                // The current note is overlapped if a previous note or end is overlapping the current note body
+                isOverlapping |= Precision.DefinitelyBigger(endTimes[i], startTime, 1) && Precision.DefinitelyBigger(endTime, endTimes[i], 1);
+
+                // We give a slight bonus to everything if something is held meanwhile
+                if (Precision.DefinitelyBigger(endTimes[i], endTime, 1))
+                    holdFactor = 1.25;
+
+                closestEndTime = Math.Min(closestEndTime, Math.Abs(endTime - endTimes[i]));
+            }
 
             // The hold addition is given if there was an overlap, however it is only valid if there are no other note with a similar ending.
             // Releasing multiple notes is just as easy as releasing 1. Nerfs the hold addition by half if the closest release is release_threshold away.
