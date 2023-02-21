@@ -186,30 +186,30 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (handBias) { handBiasValue *= 0.4; }
 
             //time to try another calculation aka how far through the LN are we hitting, the further from the middle of the note we're hitting the easier it is.
-            double lnProgressionPercentage = 1;
+            double lnProgressionPercentage = 0.35;
+            double PercentageCounter = 1;
             for (int i = 0; i < endTimes.Length; ++i)
             {
-                if (Precision.DefinitelyBigger(startTime, startTimes[i], 1) && Precision.DefinitelyBigger(endTime, endTimes[i], 1))
+                if (Precision.DefinitelyBigger(endTimes[i], endTime, 1) && (endTime - startTime) != 0)
                 {
-                    if (lnProgressionPercentage == 0) { lnProgressionPercentage = ((endTimes[i] - startTime) / (endTime - startTime)) * (1 / (1 + Math.Exp(0.5 * ((release_threshold * 2) - (endTimes[i] - startTimes[i]))))); }
-                    else { lnProgressionPercentage = (lnProgressionPercentage + (((endTimes[i] - startTime) / (endTime - startTime))) * (1 / (1 + Math.Exp(0.5 * ((release_threshold * 2) - (endTimes[i] - startTimes[i])))))) / 2; }
+                    lnProgressionPercentage += (0.5 - Math.Abs(((endTime - startTime) / (endTimes[i] - startTimes[i])) - 0.5));
+                    PercentageCounter++;
                 }
             }
-            if (lnProgressionPercentage <= 0.5) { lnProgressionPercentage *= 4; }
-            else { lnProgressionPercentage = 4 - (lnProgressionPercentage * 4); }
 
+            lnProgressionPercentage /= PercentageCounter;
             // The hold addition is given if there was an overlap, however it is only valid if there are no other note with a similar ending.
             // Releasing multiple notes is just as easy as releasing 1. Nerfs the hold addition by half if the closest release is release_threshold away.
             // holdAddition
             //      ^
-            // 2.3  + - - - - - -+-----------
+            // 3.5  + - - - - - -+-----------
             //      |           /
-            // 1.15 + - - - - -/   Sigmoid Curve
+            // 1.75 + - - - - -/   Sigmoid Curve
             //      |         /|
             // 0.0  +--------+-+---------------> Release Difference / ms
             //          release_threshold
             if (isOverlapping)
-                holdAddition = 2.3 / (1 + Math.Exp(0.5 * (release_threshold - (closestEndTime * handBiasValue * lnProgressionPercentage))));
+                holdAddition = 3.5 / (1 + Math.Exp(0.5 * (release_threshold - (closestEndTime * handBiasValue * lnProgressionPercentage))));
 
             // Decay and increase individualStrains in own column
             individualStrains[column] = applyDecay(individualStrains[column], startTime - startTimes[column], individual_decay_base, false);
