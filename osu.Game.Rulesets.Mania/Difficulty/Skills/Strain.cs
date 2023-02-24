@@ -24,6 +24,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private readonly double[] startTimes;
         private readonly double[] endTimes;
         private readonly double[] individualStrains;
+        private readonly int columnCount;
 
         private double individualStrain;
         private double overallStrain;
@@ -34,6 +35,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             startTimes = new double[totalColumns];
             endTimes = new double[totalColumns];
             individualStrains = new double[totalColumns];
+            columnCount = totalColumns;
             overallStrain = 1;
         }
 
