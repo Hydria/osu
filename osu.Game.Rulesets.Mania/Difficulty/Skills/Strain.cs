@@ -4,6 +4,7 @@
 #nullable disable
 
 using System;
+using System.Linq;
 using osu.Framework.Utils;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
@@ -24,7 +25,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private readonly double[] startTimes;
         private readonly double[] endTimes;
         private readonly double[] individualStrains;
-        private readonly int columnCount;
+        private readonly bool[] chordCurrent;
 
         private double individualStrain;
         private double overallStrain;
@@ -35,7 +36,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             startTimes = new double[totalColumns];
             endTimes = new double[totalColumns];
             individualStrains = new double[totalColumns];
-            columnCount = totalColumns;
+            chordCurrent = new bool[totalColumns + 2];
             overallStrain = 1;
         }
 
@@ -50,6 +51,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double closestEndTime = Math.Abs(endTime - startTime); // Lowest value we can assume with the current information
             double holdFactor = 1.0; // Factor to all additional strains in case something else is held
             double holdAddition = 0; // Addition to the current note in case it's a hold and has to be released awkwardly
+
+            // Reset the chord if the current note doesn't start at the same time
+            if (Precision.DefinitelyBigger(current.DeltaTime, 0, 1))
+                Array.Fill(chordCurrent, false);
+
+            // Add current note to the chord (with padding)
+            chordCurrent[column + 1] = true;
 
             for (int i = 0; i < endTimes.Length; ++i)
             {
@@ -101,5 +109,35 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private double applyDecay(double value, double deltaTime, double decayBase)
             => value * Math.Pow(decayBase, deltaTime / 1000);
+
+        public double ChordComplexity(bool[] chordCurrent)
+        {
+            int columns = chordCurrent.Length;
+            double chordComplexity = 0;
+            double specialColumn = 0;
+
+            if (columns % 2 != 0)
+            {
+                //work out the special column placement
+                int specialColumnIndex = (int)Math.Ceiling(columns / 2.0);
+
+                //need to remove the middle note as we use that as a separate calculation, so calculate its worth here
+                if (chordCurrent[specialColumnIndex])
+                    specialColumn = 3;
+
+                //rebuild array without special column
+                chordCurrent.Where((_, i) => i != specialColumnIndex).ToArray();
+            }
+
+            for (int i = 0; i < columns; i++)
+            {
+                if (chordCurrent[i]) //if the note exists, count it
+                    chordComplexity += 1.0;
+                if ((chordCurrent[i] && !chordCurrent[i + 1]) || (!chordCurrent[i] && chordCurrent[i + 1])) //if the current bool is different to the next one, count it
+                    chordComplexity += 1.5;
+            }
+
+            return chordComplexity + specialColumn;
+        }
     }
 }
