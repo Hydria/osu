@@ -110,7 +110,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private double applyDecay(double value, double deltaTime, double decayBase)
             => value * Math.Pow(decayBase, deltaTime / 1000);
 
-        public double ChordComplexity(bool[] chordCurrent)
+        private double chordComplexity(bool[] chordCurrent)
         {
             int columns = chordCurrent.Length;
             double chordComplexity = 0;
@@ -118,22 +118,22 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             if (columns % 2 != 0)
             {
-                //work out the special column placement
+                // Work out the special column placement.
                 int specialColumnIndex = (int)Math.Ceiling(columns / 2.0);
 
-                //need to remove the middle note as we use that as a separate calculation, so calculate its worth here
+                //Need to remove the middle note as we use that as a separate calculation, so calculate its worth here.
                 if (chordCurrent[specialColumnIndex])
                     specialColumn = 3;
 
-                //rebuild array without special column
+                // Rebuild array without special column.
                 chordCurrent.Where((_, i) => i != specialColumnIndex).ToArray();
             }
 
             for (int i = 0; i < columns; i++)
             {
-                if (chordCurrent[i]) //if the note exists, count it
+                if (chordCurrent[i]) // If the note exists, count it.
                     chordComplexity += 1.0;
-                if ((chordCurrent[i] && !chordCurrent[i + 1]) || (!chordCurrent[i] && chordCurrent[i + 1])) //if the current bool is different to the next one, count it
+                if ((chordCurrent[i] && !chordCurrent[i + 1]) || (!chordCurrent[i] && chordCurrent[i + 1])) // If the current bool is different to the next one, count it.
                     chordComplexity += 1.5;
             }
 
