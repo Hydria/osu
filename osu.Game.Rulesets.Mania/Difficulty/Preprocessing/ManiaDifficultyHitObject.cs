@@ -46,9 +46,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 
                 //need to remove the middle note as use that as a separate calculation
                 if (currentChord[specialColumnIndex])
-                {
                     specialColumn = 3;
-                }
                 //rebuild array without special column
                 currentChord.Where((_, i) => i != specialColumnIndex).ToArray();
             }
