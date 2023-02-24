@@ -35,7 +35,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             double chordComplexity = 0;
             double specialColumn = 0;
 
-            currentChord[((ManiaHitObject)hitObject).Column] = true;
+            currentChord[((ManiaHitObject)hitObject).Column + 1] = true;
             foreach (ManiaDifficultyHitObject d in objects.Where(o => o.StartTime == StartTime))
                 currentChord[d.BaseObject.Column + 1] = true; //sets true if note is present in chord, places it one value down to allow a buffer to avoid issues with upscaling keymodes
             if (columns % 2 != 0)
