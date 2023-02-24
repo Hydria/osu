@@ -9,6 +9,7 @@ using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects;
+using static Realms.ThreadSafeReference;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 {
@@ -17,11 +18,11 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
         public new ManiaHitObject BaseObject => (ManiaHitObject)base.BaseObject;
 
         private readonly List<DifficultyHitObject> objects;
-        private readonly HitObject hitObject;
 
         public ManiaDifficultyHitObject(HitObject hitObject, HitObject lastObject, double clockRate, List<DifficultyHitObject> objects, int index)
             : base(hitObject, lastObject, clockRate, objects, index)
         {
+            this.objects = objects;
         }
 
         /// <summary>
@@ -35,13 +36,13 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             double chordComplexity = 0;
             double specialColumn = 0;
 
-            currentChord[((ManiaHitObject)hitObject).Column + 1] = true;
+            currentChord[BaseObject.Column + 1] = true;
             foreach (ManiaDifficultyHitObject d in objects.Where(o => o.StartTime == StartTime))
                 currentChord[d.BaseObject.Column + 1] = true; //sets true if note is present in chord, places it one value down to allow a buffer to avoid issues with upscaling keymodes
             if (columns % 2 != 0)
             {
                 //work out the special column placement
-                int specialColumnIndex = Convert.ToInt32(Math.Ceiling(currentChord.Length / 2.0));
+                int specialColumnIndex = (int)Math.Ceiling(currentChord.Length / 2.0);
 
                 //need to remove the middle note as use that as a separate calculation
                 if (currentChord[specialColumnIndex])
