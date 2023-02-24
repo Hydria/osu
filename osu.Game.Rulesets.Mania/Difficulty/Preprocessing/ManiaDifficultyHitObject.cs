@@ -9,7 +9,6 @@ using System.Linq;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects;
-using static Realms.ThreadSafeReference;
 
 namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
 {
