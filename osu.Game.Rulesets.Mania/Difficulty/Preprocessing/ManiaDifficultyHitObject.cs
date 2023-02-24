@@ -53,7 +53,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Preprocessing
             {
                 if (currentChord[i])
                     chordComplexity += 1.0;
-                if ((currentChord[i] && !currentChord[i]) || (!currentChord[i] && currentChord[i]))
+                if ((currentChord[i] && !currentChord[i + 1]) || (!currentChord[i] && currentChord[i + 1]))
                     chordComplexity += 1.5;
             }
 
