@@ -29,6 +29,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private double individualStrain;
         private double overallStrain;
+        private double chordDifficulty;
 
         public Strain(Mod[] mods, int totalColumns)
             : base(mods)
@@ -38,6 +39,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             individualStrains = new double[totalColumns];
             chordCurrent = new bool[totalColumns + 2];
             overallStrain = 1;
+            chordDifficulty = 0;
         }
 
         protected override double StrainValueOf(DifficultyHitObject current)
@@ -51,7 +53,6 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double closestEndTime = Math.Abs(endTime - startTime); // Lowest value we can assume with the current information
             double holdFactor = 1.0; // Factor to all additional strains in case something else is held
             double holdAddition = 0; // Addition to the current note in case it's a hold and has to be released awkwardly
-            double chordDifficulty = 0; //calculates the complexity of a chord and applies it per note
 
             // Reset the chord if the current note doesn't start at the same time and then fill it with all relevant notes
             if (Precision.DefinitelyBigger(current.DeltaTime, 0, 1))
