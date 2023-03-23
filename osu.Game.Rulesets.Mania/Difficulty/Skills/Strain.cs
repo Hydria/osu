@@ -51,13 +51,41 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double closestEndTime = Math.Abs(endTime - startTime); // Lowest value we can assume with the current information
             double holdFactor = 1.0; // Factor to all additional strains in case something else is held
             double holdAddition = 0; // Addition to the current note in case it's a hold and has to be released awkwardly
+            double chordDifficulty = 0; //calculates the complexity of a chord and applies it per note
 
-            // Reset the chord if the current note doesn't start at the same time
+            // Reset the chord if the current note doesn't start at the same time and then fill it with all relevant notes
             if (Precision.DefinitelyBigger(current.DeltaTime, 0, 1))
+            {
                 Array.Fill(chordCurrent, false);
+                int i = 0;
+                bool chordCheck = true;
+                chordCurrent[column] = true;
 
-            // Add current note to the chord (with padding)
-            chordCurrent[column + 1] = true;
+                while (chordCheck == true)
+                {
+                    var nextNote = (ManiaDifficultyHitObject)current.Next(i); // Calls the next hitobject after the last one we've just checked 
+                    if (nextNote != null) // Checks to see if we're not at the end of the file
+                    {
+                        double nextNoteStartTime = nextNote.StartTime;
+
+                        // Checks to see if next note is a chord relative to current note
+                        if (Precision.AlmostEquals(nextNoteStartTime, startTime, 1))
+                        {
+                            // Changes chord column to true, avoids overinflation with stacked notes
+                            chordCurrent[nextNote.BaseObject.Column] = true;
+                            i++;
+                        }
+                        else
+                        {
+                            chordCheck = false;
+                            // Figure out the chord complexity of the current chord and divide the value by how many notes are present
+                            // Since we only need to run this on every chord update it's done in here
+                            chordDifficulty = chordComplexity(chordCurrent) / chordCurrent.Count(c => c);
+                        }
+                    }
+                    else chordCheck = false; // If we're at the end of the file, finish the chord check
+                }
+            }
 
             for (int i = 0; i < endTimes.Length; ++i)
             {
@@ -65,7 +93,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 isOverlapping |= Precision.DefinitelyBigger(endTimes[i], startTime, 1) && Precision.DefinitelyBigger(endTime, endTimes[i], 1);
 
                 // We give a slight bonus to everything if something is held meanwhile
-                if (Precision.DefinitelyBigger(endTimes[i], endTime, 1))
+                if (Precision.DefinitelyBigger(endTimes[i], endTime, 1) && !Precision.AlmostEquals(startTimes[i], startTime, 1))
                     holdFactor = 1.25;
 
                 closestEndTime = Math.Min(closestEndTime, Math.Abs(endTime - endTimes[i]));
@@ -121,15 +149,18 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 // Work out the special column placement.
                 int specialColumnIndex = (int)Math.Ceiling(columns / 2.0);
 
-                //Need to remove the middle note as we use that as a separate calculation, so calculate its worth here.
+                // Need to remove the middle note as we use that as a separate calculation, so calculate its worth here.
                 if (chordCurrent[specialColumnIndex])
                     specialColumn = 3;
 
                 // Rebuild array without special column.
                 chordCurrent.Where((_, i) => i != specialColumnIndex).ToArray();
+
+                // Recalculate columns value.
+                columns = chordCurrent.Length;
             }
 
-            for (int i = 0; i < columns; i++)
+            for (int i = 0; i < columns - 1; i++)
             {
                 if (chordCurrent[i]) // If the note exists, count it.
                     chordComplexity += 1.0;
