@@ -58,34 +58,27 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             if (Precision.DefinitelyBigger(current.DeltaTime, 0, 1))
             {
                 Array.Fill(chordCurrent, false);
-                int i = 0;
-                bool chordCheck = true;
                 chordCurrent[column] = true;
 
-                while (chordCheck == true)
+                int i = 0;
+                var nextNote = (ManiaDifficultyHitObject)current.Next(0);
+                if (nextNote != null) // Checks to see if we're not at the end of the file
                 {
-                    var nextNote = (ManiaDifficultyHitObject)current.Next(i); // Calls the next hitobject after the last one we've just checked 
-                    if (nextNote != null) // Checks to see if we're not at the end of the file
-                    {
-                        double nextNoteStartTime = nextNote.StartTime;
+                    double nextNoteStartTime = nextNote.StartTime;
 
-                        // Checks to see if next note is a chord relative to current note
-                        if (Precision.AlmostEquals(nextNoteStartTime, startTime, 1))
-                        {
-                            // Changes chord column to true, avoids overinflation with stacked notes
-                            chordCurrent[nextNote.BaseObject.Column] = true;
-                            i++;
-                        }
-                        else
-                        {
-                            chordCheck = false;
-                            // Figure out the chord complexity of the current chord and divide the value by how many notes are present
-                            // Since we only need to run this on every chord update it's done in here
-                            chordDifficulty = chordComplexity(chordCurrent) / chordCurrent.Count(c => c);
-                        }
+                    // Checks to see if next note is a chord relative to current note
+                    while (Precision.AlmostEquals(nextNoteStartTime, startTime, 1) && nextNote != null)
+                    {
+                        // Changes chord column to true, avoids overinflation with stacked notes
+                        chordCurrent[nextNote.BaseObject.Column] = true;
+                        i++;
+                        nextNote = (ManiaDifficultyHitObject)current.Next(i);
+                        if (nextNote != null) nextNoteStartTime = nextNote.StartTime;
                     }
-                    else chordCheck = false; // If we're at the end of the file, finish the chord check
                 }
+                // Figure out the chord complexity of the current chord and divide the value by how many notes are present
+                // Since we only need to run this on every chord update it's done in here
+                chordDifficulty = chordComplexity(chordCurrent) / chordCurrent.Count(c => c);
             }
 
             for (int i = 0; i < endTimes.Length; ++i)
