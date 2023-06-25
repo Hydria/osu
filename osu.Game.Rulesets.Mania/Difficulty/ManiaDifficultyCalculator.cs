@@ -26,7 +26,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 {
     public class ManiaDifficultyCalculator : DifficultyCalculator
     {
-        private const double star_scaling_factor = 0.018;
+        private const double star_scaling_factor = 0.0056;
 
         private readonly bool isForCurrentRuleset;
         private readonly double originalOverallDifficulty;

@@ -87,7 +87,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 isOverlapping |= Precision.DefinitelyBigger(endTimes[i], startTime, 1) && Precision.DefinitelyBigger(endTime, endTimes[i], 1);
 
                 // We give a slight bonus to everything if something is held meanwhile
-                if (Precision.DefinitelyBigger(endTimes[i], endTime, 1) && !Precision.AlmostEquals(startTimes[i], startTime, 1))
+                if (Precision.DefinitelyBigger(endTimes[i], endTime, 1))
                     holdFactor = 1.25;
 
                 closestEndTime = Math.Min(closestEndTime, Math.Abs(endTime - endTimes[i]));
@@ -115,7 +115,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
             // Decay and increase overallStrain
             overallStrain = applyDecay(overallStrain, current.DeltaTime, overall_decay_base);
-            overallStrain += (1 + holdAddition) * holdFactor;
+            overallStrain += (1 + holdAddition + chordDifficulty) * holdFactor;
 
             // Update startTimes and endTimes arrays
             startTimes[column] = startTime;
