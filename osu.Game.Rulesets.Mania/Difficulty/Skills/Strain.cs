@@ -15,6 +15,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
         private const double individual_decay_base = 0.125;
         private const double overall_decay_base = 0.30;
         private const double release_threshold = 30;
+        private const double ics_midpoint_window = 173;
 
         protected override double SkillMultiplier => 1;
         protected override double StrainDecayBase => 1;
@@ -42,6 +43,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             double endTime = maniaCurrent.EndTime;
             int column = maniaCurrent.BaseObject.Column;
             bool isOverlapping = false;
+            double deltaTime = Math.Pow(maniaCurrent.DeltaTime, 1 + (1 / (6 + Math.Exp(0.3 * (ics_midpoint_window - maniaCurrent.DeltaTime)))));
 
             double closestEndTime = Math.Abs(endTime - startTime); // Lowest value we can assume with the current information
             double holdFactor = 1.0; // Factor to all additional strains in case something else is held
@@ -83,7 +85,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             individualStrain = maniaCurrent.DeltaTime <= 1 ? Math.Max(individualStrain, individualStrains[column]) : individualStrains[column];
 
             // Decay and increase overallStrain
-            overallStrain = applyDecay(overallStrain, current.DeltaTime, overall_decay_base);
+            overallStrain = applyDecay(overallStrain, deltaTime, overall_decay_base);
             overallStrain += (1 + holdAddition) * holdFactor;
 
             // Update startTimes and endTimes arrays
