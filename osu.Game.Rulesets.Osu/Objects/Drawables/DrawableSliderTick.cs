@@ -14,13 +14,11 @@ using osu.Framework.Graphics.Containers;
 
 namespace osu.Game.Rulesets.Osu.Objects.Drawables
 {
-    public partial class DrawableSliderTick : DrawableOsuHitObject, IRequireTracking
+    public partial class DrawableSliderTick : DrawableOsuHitObject
     {
         public const double ANIM_DURATION = 150;
 
         private const float default_tick_size = 16;
-
-        public bool Tracking { get; set; }
 
         public override bool DisplayResult => false;
 
@@ -73,11 +71,7 @@ namespace osu.Game.Rulesets.Osu.Objects.Drawables
             Position = HitObject.Position - DrawableSlider.HitObject.Position;
         }
 
-        protected override void CheckForResult(bool userTriggered, double timeOffset)
-        {
-            if (timeOffset >= 0)
-                ApplyResult(r => r.Type = Tracking ? r.Judgement.MaxResult : r.Judgement.MinResult);
-        }
+        protected override void CheckForResult(bool userTriggered, double timeOffset) => DrawableSlider.SliderInputManager.TryJudgeNestedObject(this, timeOffset);
 
         protected override void UpdateInitialTransforms()
         {
@@ -97,7 +91,7 @@ namespace osu.Game.Rulesets.Osu.Objects.Drawables
 
                 case ArmedState.Miss:
                     this.FadeOut(ANIM_DURATION);
-                    this.FadeColour(Color4.Red, ANIM_DURATION / 2);
+                    this.TransformBindableTo(AccentColour, Color4.Red, 0);
                     break;
 
                 case ArmedState.Hit:

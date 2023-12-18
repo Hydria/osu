@@ -139,9 +139,12 @@ namespace osu.Game.Rulesets.Scoring
 
         /// <summary>
         /// A special result used as a padding value for legacy rulesets. It is a hit type and affects combo, but does not affect the base score (does not affect accuracy).
+        ///
+        /// DO NOT USE FOR ANYTHING EVER.
         /// </summary>
         /// <remarks>
-        /// DO NOT USE.
+        /// This is used when dealing with legacy scores, which historically only have counts stored for 300/100/50/miss.
+        /// For these scores, we pad the hit statistics with `LegacyComboIncrease` to meet the correct max combo for the score.
         /// </remarks>
         [EnumMember(Value = "legacy_combo_increase")]
         [Order(99)]
@@ -349,6 +352,9 @@ namespace osu.Game.Rulesets.Scoring
 
             if (maxResult.IsBonus() && minResult != HitResult.IgnoreMiss)
                 throw new ArgumentOutOfRangeException(nameof(minResult), $"{HitResult.IgnoreMiss} is the only valid minimum result for a {maxResult} judgement.");
+
+            if (minResult == HitResult.IgnoreMiss)
+                return;
 
             if (maxResult == HitResult.LargeTickHit && minResult != HitResult.LargeTickMiss)
                 throw new ArgumentOutOfRangeException(nameof(minResult), $"{HitResult.LargeTickMiss} is the only valid minimum result for a {maxResult} judgement.");
