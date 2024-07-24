@@ -24,6 +24,14 @@ namespace osu.Game.Rulesets.Scoring
         None,
 
         /// <summary>
+        /// Indicates that an input has been registered outside of the note's miss radius, so should not trigger the note
+        /// </summary>
+        [Description(@"Ghost")]
+        [EnumMember(Value = "ghost")]
+        [Order(17)]
+        Ghost,
+
+        /// <summary>
         /// Indicates that the object has been judged as a miss.
         /// </summary>
         /// <remarks>
@@ -184,6 +192,7 @@ namespace osu.Game.Rulesets.Scoring
         {
             switch (result)
             {
+                case HitResult.Ghost:
                 case HitResult.Miss:
                 case HitResult.Meh:
                 case HitResult.Ok:
@@ -237,6 +246,10 @@ namespace osu.Game.Rulesets.Scoring
                 case HitResult.ComboBreak:
                     return false;
 
+                //Hitting a ghost should not effect the upcoming note, it should just be classed more or less as an empty combo break.
+                case HitResult.Ghost:
+                    return false;
+
                 default:
                     return IsScorable(result) && !IsTick(result) && !IsBonus(result);
             }
@@ -287,6 +300,7 @@ namespace osu.Game.Rulesets.Scoring
         {
             switch (result)
             {
+                case HitResult.Ghost:
                 case HitResult.IgnoreMiss:
                 case HitResult.Miss:
                 case HitResult.SmallTickMiss:
@@ -309,6 +323,7 @@ namespace osu.Game.Rulesets.Scoring
         {
             switch (result)
             {
+                case HitResult.Ghost:
                 case HitResult.None:
                 case HitResult.IgnoreMiss:
                 case HitResult.Miss:
@@ -335,6 +350,9 @@ namespace osu.Game.Rulesets.Scoring
 
                 // ComboBreak is its own type that affects score via combo.
                 case HitResult.ComboBreak:
+                    return true;
+
+                case HitResult.Ghost:
                     return true;
 
                 case HitResult.SliderTailHit:
@@ -403,8 +421,8 @@ namespace osu.Game.Rulesets.Scoring
             if (maxResult == HitResult.SmallTickHit && minResult != HitResult.SmallTickMiss)
                 throw new ArgumentOutOfRangeException(nameof(minResult), $"{HitResult.SmallTickMiss} is the only valid minimum result for a {maxResult} judgement.");
 
-            if (maxResult.IsBasic() && minResult != HitResult.Miss)
-                throw new ArgumentOutOfRangeException(nameof(minResult), $"{HitResult.Miss} is the only valid minimum result for a {maxResult} judgement.");
+            if (maxResult.IsBasic() && minResult != HitResult.Ghost)
+                throw new ArgumentOutOfRangeException(nameof(minResult), $"{HitResult.Ghost} is the only valid minimum result for a {maxResult} judgement.");
         }
     }
 #pragma warning restore CS0618

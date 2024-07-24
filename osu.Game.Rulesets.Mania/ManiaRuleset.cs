@@ -246,6 +246,7 @@ namespace osu.Game.Rulesets.Mania
                 case ModType.DifficultyIncrease:
                     return new Mod[]
                     {
+                        new ManiaModTournamentMode(),
                         new ManiaModHardRock(),
                         new MultiMod(new ManiaModSuddenDeath(), new ManiaModPerfect()),
                         new MultiMod(new ManiaModDoubleTime(), new ManiaModNightcore()),

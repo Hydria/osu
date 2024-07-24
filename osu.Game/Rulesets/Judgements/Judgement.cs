@@ -79,7 +79,7 @@ namespace osu.Game.Rulesets.Judgements
                         return HitResult.IgnoreMiss;
 
                     default:
-                        return HitResult.Miss;
+                        return HitResult.Ghost;
                 }
             }
         }
@@ -116,6 +116,9 @@ namespace osu.Game.Rulesets.Judgements
 
                 case HitResult.Miss:
                     return -DEFAULT_MAX_HEALTH_INCREASE * 2;
+
+                case HitResult.Ghost:
+                    return -DEFAULT_MAX_HEALTH_INCREASE;
 
                 case HitResult.Meh:
                     return DEFAULT_MAX_HEALTH_INCREASE * 0.05;

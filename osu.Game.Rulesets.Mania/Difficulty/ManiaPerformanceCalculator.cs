@@ -19,6 +19,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         private int countOk;
         private int countMeh;
         private int countMiss;
+        private int countGhost;
         private double scoreAccuracy;
 
         public ManiaPerformanceCalculator()
@@ -36,6 +37,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             countOk = score.Statistics.GetValueOrDefault(HitResult.Ok);
             countMeh = score.Statistics.GetValueOrDefault(HitResult.Meh);
             countMiss = score.Statistics.GetValueOrDefault(HitResult.Miss);
+            countGhost = score.Statistics.GetValueOrDefault(HitResult.Ghost);
             scoreAccuracy = calculateCustomAccuracy();
 
             // Arbitrary initial value for scaling pp in order to standardize distributions across game modes.
@@ -66,7 +68,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return difficultyValue;
         }
 
-        private double totalHits => countPerfect + countOk + countGreat + countGood + countMeh + countMiss;
+        private double totalHits => countPerfect + countOk + countGreat + countGood + countMeh + countMiss + countGhost;
 
         /// <summary>
         /// Accuracy used to weight judgements independently from the score's actual accuracy.

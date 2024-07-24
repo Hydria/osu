@@ -3,6 +3,7 @@
 
 using System.Linq;
 using osu.Game.Rulesets.Scoring;
+using Remotion.Linq.Parsing.Structure.IntermediateModel;
 
 namespace osu.Game.Rulesets.Mania.Scoring
 {
@@ -30,6 +31,7 @@ namespace osu.Game.Rulesets.Mania.Scoring
                 case HitResult.Ok:
                 case HitResult.Meh:
                 case HitResult.Miss:
+                case HitResult.Ghost:
                     return true;
             }
 

@@ -22,7 +22,8 @@ namespace osu.Game.Rulesets.Scoring
             new DifficultyRange(HitResult.Good, 97, 82, 67),
             new DifficultyRange(HitResult.Ok, 127, 112, 97),
             new DifficultyRange(HitResult.Meh, 151, 136, 121),
-            new DifficultyRange(HitResult.Miss, 188, 173, 158),
+            new DifficultyRange(HitResult.Miss, 188, 188, 188),
+            new DifficultyRange(HitResult.Ghost, 1000000, 1000000, 1000000),
         };
 
         private double perfect;
@@ -31,6 +32,7 @@ namespace osu.Game.Rulesets.Scoring
         private double ok;
         private double meh;
         private double miss;
+        private double ghost;
 
         /// <summary>
         /// An empty <see cref="HitWindows"/> with only <see cref="HitResult.Miss"/> and <see cref="HitResult.Perfect"/>.
@@ -90,6 +92,10 @@ namespace osu.Game.Rulesets.Scoring
 
                 switch (range.Result)
                 {
+                    case HitResult.Ghost:
+                        ghost = value;
+                        break;
+
                     case HitResult.Miss:
                         miss = value;
                         break;
@@ -126,7 +132,7 @@ namespace osu.Game.Rulesets.Scoring
         {
             timeOffset = Math.Abs(timeOffset);
 
-            for (var result = HitResult.Perfect; result >= HitResult.Miss; --result)
+            for (var result = HitResult.Perfect; result >= HitResult.Ghost; --result)
             {
                 if (IsHitResultAllowed(result) && timeOffset <= WindowFor(result))
                     return result;
@@ -163,6 +169,9 @@ namespace osu.Game.Rulesets.Scoring
                 case HitResult.Miss:
                     return miss;
 
+                case HitResult.Ghost:
+                    return ghost;
+
                 default:
                     throw new ArgumentException("Unknown enum member", nameof(result));
             }
@@ -188,6 +197,7 @@ namespace osu.Game.Rulesets.Scoring
             {
                 new DifficultyRange(HitResult.Perfect, 0, 0, 0),
                 new DifficultyRange(HitResult.Miss, 0, 0, 0),
+                new DifficultyRange(HitResult.Ghost, 0, 0, 0),
             };
 
             public override bool IsHitResultAllowed(HitResult result)
@@ -196,6 +206,7 @@ namespace osu.Game.Rulesets.Scoring
                 {
                     case HitResult.Perfect:
                     case HitResult.Miss:
+                    case HitResult.Ghost:
                         return true;
                 }
 

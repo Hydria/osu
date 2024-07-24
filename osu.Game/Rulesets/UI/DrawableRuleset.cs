@@ -547,12 +547,12 @@ namespace osu.Game.Rulesets.UI
             {
                 foreach (var hitObject in Objects)
                 {
-                    if (hitObject.HitWindows.WindowFor(HitResult.Miss) > 0)
+                    if (hitObject.HitWindows.WindowFor(HitResult.Ghost) > 0)
                         return hitObject.HitWindows;
 
                     foreach (var nested in hitObject.NestedHitObjects)
                     {
-                        if (nested.HitWindows.WindowFor(HitResult.Miss) > 0)
+                        if (nested.HitWindows.WindowFor(HitResult.Ghost) > 0)
                             return nested.HitWindows;
                     }
                 }

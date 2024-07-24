@@ -146,6 +146,7 @@ namespace osu.Game.Database
         {
             switch (hitResult)
             {
+                case HitResult.Ghost:
                 case HitResult.Miss:
                 case HitResult.Meh:
                 case HitResult.Ok:

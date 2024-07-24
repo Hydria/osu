@@ -34,6 +34,9 @@ namespace osu.Game.Rulesets.Mania.Scoring
 
             switch (result)
             {
+                case HitResult.Ghost:
+                    return -(Beatmap.Difficulty.DrainRate + 1) * 0.005;
+
                 case HitResult.Miss:
                     switch (hitObject)
                     {
