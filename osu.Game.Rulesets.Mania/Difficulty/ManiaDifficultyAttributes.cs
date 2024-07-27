@@ -19,6 +19,12 @@ namespace osu.Game.Rulesets.Mania.Difficulty
         [JsonProperty("great_hit_window")]
         public double GreatHitWindow { get; set; }
 
+        /// <summary>
+        /// The miss window for use of modifying for mods.
+        /// </summary>
+        [JsonProperty("miss_hit_window")]
+        public double MissHitWindow { get; set; }
+
         public override IEnumerable<(int attributeId, object value)> ToDatabaseAttributes()
         {
             foreach (var v in base.ToDatabaseAttributes())
@@ -26,6 +32,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             yield return (ATTRIB_ID_DIFFICULTY, StarRating);
             yield return (ATTRIB_ID_GREAT_HIT_WINDOW, GreatHitWindow);
+            yield return (ATTRIB_ID_MISS_HIT_WINDOW, MissHitWindow);
         }
 
         public override void FromDatabaseAttributes(IReadOnlyDictionary<int, double> values, IBeatmapOnlineInfo onlineInfo)
@@ -34,6 +41,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
 
             StarRating = values[ATTRIB_ID_DIFFICULTY];
             GreatHitWindow = values[ATTRIB_ID_GREAT_HIT_WINDOW];
+            MissHitWindow = values[ATTRIB_ID_MISS_HIT_WINDOW];
         }
     }
 }

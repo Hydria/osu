@@ -22,7 +22,7 @@ namespace osu.Game.Rulesets.Scoring
             new DifficultyRange(HitResult.Good, 97, 82, 67),
             new DifficultyRange(HitResult.Ok, 127, 112, 97),
             new DifficultyRange(HitResult.Meh, 151, 136, 121),
-            new DifficultyRange(HitResult.Miss, 188, 188, 188),
+            new DifficultyRange(HitResult.Miss, 188, 173, 158),
             new DifficultyRange(HitResult.Ghost, 1000000, 1000000, 1000000),
         };
 

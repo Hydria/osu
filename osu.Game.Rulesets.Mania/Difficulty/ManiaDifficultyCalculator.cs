@@ -4,8 +4,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
+using osu.Framework.Logging;
 using osu.Game.Beatmaps;
 using osu.Game.Extensions;
+using osu.Game.Overlays.Notifications;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
@@ -53,9 +56,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 // In osu-stable mania, rate-adjustment mods don't affect the hit window.
                 // This is done the way it is to introduce fractional differences in order to match osu-stable for the time being.
                 GreatHitWindow = Math.Ceiling((int)(getHitWindow300(mods) * clockRate) / clockRate),
+                // Allowing the edit of the miss window for mod purposes
+                MissHitWindow = Math.Ceiling((int)(getMissWindow(mods) * clockRate) / clockRate),
                 MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
             };
-
             return attributes;
         }
 
@@ -137,6 +141,36 @@ namespace osu.Game.Rulesets.Mania.Difficulty
                 return applyModAdjustments(34, mods);
 
             return applyModAdjustments(47, mods);
+
+            static double applyModAdjustments(double value, Mod[] mods)
+            {
+                if (mods.Any(m => m is ManiaModHardRock))
+                    value /= 1.4;
+                else if (mods.Any(m => m is ManiaModEasy))
+                    value *= 1.4;
+
+                return value;
+            }
+        }
+
+        private double getMissWindow(Mod[] mods)
+        {
+            if (mods.Any(m => m is ManiaModTournamentMode))
+            {
+                Logger.Log("Miss Hitwindow set to 188", LoggingTarget.Runtime, LogLevel.Debug);
+                return 188;
+            }
+
+            if (isForCurrentRuleset)
+            {
+                double od = Math.Min(10.0, Math.Max(0, 10.0 - originalOverallDifficulty));
+                return applyModAdjustments(158 + 3 * od, mods);
+            }
+
+            if (Math.Round(originalOverallDifficulty) > 4)
+                return applyModAdjustments(158, mods);
+
+            return applyModAdjustments(221, mods);
 
             static double applyModAdjustments(double value, Mod[] mods)
             {

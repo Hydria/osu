@@ -17,7 +17,7 @@ using osu.Game.Rulesets.Scoring;
 
 namespace osu.Game.Rulesets.Mania.Mods
 {
-    public partial class ManiaModTournamentMode : Mod, IApplicableAfterBeatmapConversion
+    public partial class ManiaModTournamentMode : Mod, IApplicableToBeatmap
     {
         public override string Name => "Tournament Mode";
 
@@ -25,7 +25,7 @@ namespace osu.Game.Rulesets.Mania.Mods
 
         public override double ScoreMultiplier => 1.0;
 
-        public override LocalisableString Description => @"Always Enabled. Client Modification.";
+        public override LocalisableString Description => @"Consistent Miss Window. No Ghost Notes Allowed.";
 
         public override IconUsage? Icon => FontAwesome.Solid.FlagCheckered;
 
@@ -33,7 +33,6 @@ namespace osu.Game.Rulesets.Mania.Mods
 
         public void ApplyToBeatmap(IBeatmap beatmap)
         {
-
         }
     }
 }
