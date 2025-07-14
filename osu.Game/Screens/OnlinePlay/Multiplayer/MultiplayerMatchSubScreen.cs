@@ -2,7 +2,6 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Diagnostics;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
@@ -35,6 +34,7 @@ using osu.Game.Screens.OnlinePlay.Multiplayer.Match;
 using osu.Game.Screens.OnlinePlay.Multiplayer.Match.Playlist;
 using osu.Game.Screens.OnlinePlay.Multiplayer.Participants;
 using osu.Game.Screens.OnlinePlay.Multiplayer.Spectate;
+using osu.Game.Screens.OnlinePlay.Playlists;
 using osu.Game.Users;
 using osu.Game.Utils;
 using osuTK;
@@ -82,6 +82,21 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer
         /// Whether the user has confirmed they want to exit this screen in the presence of unsaved changes.
         /// </summary>
         protected bool ExitConfirmed { get; private set; }
+
+        /// <summary>
+        /// Used for testing - whether the local user style can be edited.
+        /// False if the beatmap hasn't been downloaded yet, or if freestyle isn't enabled.
+        /// </summary>
+        internal bool UserStyleEditingEnabled
+        {
+            get
+            {
+                if (!userStyleDisplayContainer.IsPresent)
+                    return false;
+
+                return userStyleDisplayContainer.SingleOrDefault()?.AllowEditing == true;
+            }
+        }
 
         [Resolved]
         private IAPIProvider api { get; set; } = null!;
@@ -276,7 +291,8 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer
                                                                             new MultiplayerPlaylist
                                                                             {
                                                                                 RelativeSizeAxes = Axes.Both,
-                                                                                RequestEdit = ShowSongSelect
+                                                                                RequestEdit = ShowSongSelect,
+                                                                                RequestResults = showResults
                                                                             }
                                                                         },
                                                                         new Drawable[]
@@ -429,14 +445,25 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer
         /// </summary>
         private void onRoomUpdated() => Scheduler.AddOnce(() =>
         {
-            bool newIsRoomJoined = client.Room != null;
+            bool wasRoomJoined = isRoomJoined;
+            isRoomJoined = client.Room != null;
 
-            if (newIsRoomJoined)
+            // Creating a room.
+            if (!wasRoomJoined && !isRoomJoined)
+            {
+                roomContent.Hide();
+                settingsOverlay.Show();
+            }
+
+            // Joining a room.
+            if (!wasRoomJoined && isRoomJoined)
             {
                 roomContent.Show();
                 settingsOverlay.Hide();
             }
-            else if (isRoomJoined)
+
+            // Leaving a room.
+            if (wasRoomJoined && !isRoomJoined)
             {
                 Logger.Log($"{this} exiting due to loss of room or connection");
 
@@ -445,17 +472,6 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer
                 else
                     ValidForResume = false;
             }
-            else
-            {
-                Debug.Assert(!isRoomJoined && !newIsRoomJoined);
-
-                // A new room is being created.
-                // The main content should be hidden until the settings overlay is hidden, signaling the room is ready to be displayed.
-                roomContent.Hide();
-                settingsOverlay.Show();
-            }
-
-            isRoomJoined = newIsRoomJoined;
         });
 
         /// <summary>
@@ -465,7 +481,7 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer
         {
             if (settings.PlaylistItemId != lastPlaylistItemId)
             {
-                updateGameplayState();
+                onActivePlaylistItemChanged();
                 lastPlaylistItemId = settings.PlaylistItemId;
             }
 
@@ -478,7 +494,29 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer
         private void onItemChanged(MultiplayerPlaylistItem item)
         {
             if (item.ID == client.Room?.Settings.PlaylistItemId)
-                updateGameplayState();
+                onActivePlaylistItemChanged();
+        }
+
+        /// <summary>
+        /// Responds to changes in the active playlist item resulting from the playlist item being edited or the room settings changing.
+        /// </summary>
+        private void onActivePlaylistItemChanged()
+        {
+            if (client.Room == null)
+                return;
+
+            // Check if we need to make this the current screen as a result of the beatmap set changing while the user's selecting a style.
+            if (this.GetChildScreen() is MultiplayerMatchFreestyleSelect)
+            {
+                MultiplayerPlaylistItem item = client.Room.CurrentPlaylistItem;
+
+                var newBeatmap = beatmapManager.QueryBeatmap($@"{nameof(BeatmapInfo.OnlineID)} == $0 AND {nameof(BeatmapInfo.MD5Hash)} == {nameof(BeatmapInfo.OnlineMD5Hash)}", item.BeatmapID);
+
+                if (!Beatmap.Value.BeatmapSetInfo.Equals(newBeatmap?.BeatmapSet))
+                    this.MakeCurrent();
+            }
+
+            Scheduler.AddOnce(updateGameplayState);
         }
 
         /// <summary>
@@ -487,7 +525,7 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer
         private void onUserStyleChanged(MultiplayerRoomUser user)
         {
             if (user.Equals(client.LocalUser))
-                updateGameplayState();
+                Scheduler.AddOnce(updateGameplayState);
         }
 
         /// <summary>
@@ -496,7 +534,7 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer
         private void onUserModsChanged(MultiplayerRoomUser user)
         {
             if (user.Equals(client.LocalUser))
-                updateGameplayState();
+                Scheduler.AddOnce(updateGameplayState);
         }
 
         /// <summary>
@@ -635,16 +673,18 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer
                 userStyleSection.Show();
 
                 PlaylistItem apiItem = new PlaylistItem(item).With(beatmap: new Optional<IBeatmapInfo>(new APIBeatmap { OnlineID = gameplayBeatmapId }), ruleset: gameplayRulesetId);
+                DrawableRoomPlaylistItem? currentDisplay = userStyleDisplayContainer.SingleOrDefault();
 
-                if (!apiItem.Equals(userStyleDisplayContainer.SingleOrDefault()?.Item))
+                if (!apiItem.Equals(currentDisplay?.Item))
                 {
-                    userStyleDisplayContainer.Child = new DrawableRoomPlaylistItem(apiItem, true)
+                    userStyleDisplayContainer.Child = currentDisplay = new DrawableRoomPlaylistItem(apiItem, true)
                     {
                         AllowReordering = false,
-                        AllowEditing = true,
-                        RequestEdit = _ => showUserStyleSelect()
+                        RequestEdit = _ => ShowUserStyleSelect()
                     };
                 }
+
+                currentDisplay.AllowEditing = localBeatmap != null;
             }
             else
                 userStyleSection.Hide();
@@ -676,13 +716,26 @@ namespace osu.Game.Screens.OnlinePlay.Multiplayer
         /// <summary>
         /// Shows the user style selection.
         /// </summary>
-        private void showUserStyleSelect()
+        public void ShowUserStyleSelect()
         {
             if (!this.IsCurrentScreen() || client.Room == null || client.LocalUser == null)
                 return;
 
             MultiplayerPlaylistItem item = client.Room.CurrentPlaylistItem;
             this.Push(new MultiplayerMatchFreestyleSelect(room, new PlaylistItem(item)));
+        }
+
+        /// <summary>
+        /// Shows the results screen for a playlist item.
+        /// </summary>
+        private void showResults(PlaylistItem item)
+        {
+            if (!this.IsCurrentScreen() || client.Room == null || client.LocalUser == null)
+                return;
+
+            // fallback is to allow this class to operate when there is no parent OnlineScreen (testing purposes).
+            var targetScreen = (Screen?)parentScreen ?? this;
+            targetScreen.Push(new PlaylistItemUserBestResultsScreen(client.Room.RoomID, item, client.LocalUser.UserID));
         }
 
         public override void OnEntering(ScreenTransitionEvent e)
