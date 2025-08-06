@@ -27,7 +27,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
 
         private double[] noteTimingDifference;
         private double[] noteTimingSorter;
-        private double[] noteTimingOrderer;
+        private int[] noteTimingOrderer;
         private double midpoint = 0;
 
         private double chordCount = 0;
@@ -44,7 +44,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             individualStrains = new double[totalColumns];
             noteTimingDifference = new double[totalColumns];
             noteTimingSorter = new double[totalColumns];
-            noteTimingOrderer = new double[totalColumns];
+            noteTimingOrderer = new int[totalColumns];
             overallStrain = 1;
             midpoint = Math.Ceiling(totalColumns / 2.0d);
         }
@@ -103,6 +103,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
              * 1. WE JUDGE THE PREVIOUS NOTE IN THE SAME COLUMN BASED ON HOW FAR AWAY IT WAS IN COMPARISON TO THE OTHER NOTES
              * 2. WE JUDGE HOW MANY HAND SWITCHES HAVE TO BE MADE IN ORDER TO PLAY ALL THE PREVIOUS PATTERNS, SO [1234] IS ONE HAND SWITCH, [1324] IS THREE.
              * NOTE: What do we want as a cutoff, 400ms?
+             *  // NOTE: SHOULD HAVE A ROLLOFF AND NOT JUST END AT 400MS
              */
 
             //work out the ms difference between the current note at the previous note in each column
@@ -115,32 +116,54 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
             {
                 if (noteTimingDifference[j] > 400) noteTimingOrderer[j] = 400;
                 else noteTimingOrderer[j] = Array.IndexOf(noteTimingSorter, noteTimingDifference[j]); //TODO: make sure the gap between notes isn't too small, ? 20ms?
+                // This currently doesn't work because it only finds the first iteration of a number, not for the full chord
             }
             //work out the midpoint of the column count (2 for 4K, 3.5 for 7K for example)
             //for examples where it's .5, exclude the next number up as it is a spacebar
             // --- UPDATE --- that's now done at the top
 
             //view where each number is in the array [0,1,2] and count how many times it switches between the midpoint (max column count) (exclude any above 400ms)
-            int currentNote = column;
-            bool currentProgressOngoing = true;
+            double rollValue = 0.0d;
             int currentProgress = 0;
-            int handSwitches = 0;
+            int k = 0;
+            bool left = false;
+            int lastDistance = 0;
 
-            if (noteTimingOrderer[column] > Math.Ceiling(noteTimingDifference.Length / 2.0d)) //we need to limit this check to only the amount of notes featured in the 400ms gap otherwise it causes keymode parity issues
+            while(column != currentProgress && k <= column)
             {
-                while (currentProgressOngoing)
+                if (k == 0)
                 {
-                    int arrayIndex = Array.IndexOf(noteTimingOrderer, currentProgress); //TODO: this needs to consider chords
-                    if (arrayIndex == -1) break;
-                    if (currentNote > midpoint) { if (arrayIndex <= midpoint) handSwitches++; }
-                    if (currentNote <= midpoint) { if (arrayIndex > midpoint) handSwitches++; }
-                    currentProgress++;
-                    currentNote = arrayIndex;
+                    if (noteTimingSorter[k] - startTime != 0)
+                    {
+                        rollValue += noteTimingOrderer[k] - column;
+                        if (noteTimingOrderer[k] < column) { left = true; }
+                        if (column > midpoint && noteTimingOrderer[k] <= midpoint) { rollValue++; }
+                        if (column <= midpoint && noteTimingOrderer[k] > midpoint) { rollValue++; }
+                    }
                 }
+                else
+                {
+                    if (noteTimingSorter[k] - noteTimingOrderer[k - 1] == 0)
+                    {
+                    }
+                    else
+                    {
+                        lastDistance = noteTimingOrderer[k] - noteTimingOrderer[k - 1];
+                        rollValue += lastDistance;
+                        if (left == true) { if (noteTimingOrderer[k] > noteTimingOrderer[k - 1]) { left = false; rollValue++; } }
+                        if (left == false) { if (noteTimingOrderer[k] < noteTimingOrderer[k - 1]) { left = true; rollValue++; } }
+                        if (noteTimingOrderer[k - 1] > midpoint && noteTimingOrderer[k] <= midpoint) { rollValue++; }
+                        if (noteTimingOrderer[k - 1] <= midpoint && noteTimingOrderer[k] > midpoint) { rollValue++; }
+                    }
+                }
+                currentProgress = noteTimingOrderer[k];
+                k++;
+                rollValue -= 2;
             }
-            double rollFactor = Math.Pow(0.75, (currentProgress - handSwitches));
 
-            
+            rollValue = 1 + (rollValue / 100);
+
+            //chord calcs
             if (maniaCurrent.DeltaTime <= 1)
             { chordCount += 1; }
             else
@@ -148,9 +171,10 @@ namespace osu.Game.Rulesets.Mania.Difficulty.Skills
                 previousChordCount = chordCount;
                 chordCount = 0;
             }
+
             // Decay and increase overallStrain
             overallStrain = applyDecay(overallStrain, current.DeltaTime, overall_decay_base) * (Math.Pow(0.997, chordCount + previousChordCount));
-            overallStrain += (1 + holdAddition) * holdFactor * rollFactor;
+            overallStrain += (1 + holdAddition) * holdFactor * rollValue;
 
             // Update startTimes and endTimes arrays
             startTimes[column] = startTime;
